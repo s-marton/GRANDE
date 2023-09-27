@@ -87,7 +87,6 @@ import collections
 from copy import deepcopy
 import timeit
 
-from genetic_tree import GeneticTree
 import functools
 import math
 
