@@ -47,3 +47,6 @@ torch==2.0.1
 tqdm==4.65.0
 xgboost==1.7.6
 yacs==0.1.8
+jupyterlab==4.0.6
+ipywidgets==8.1.1
+typing_extensions==4.8.0
