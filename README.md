@@ -1,6 +1,6 @@
 # GRANDE: Gradient-Based Decision Tree Ensembles
 
-This repository provides the code for the paper ***"GRANDE: Gradient-Based Decision Tree Ensembles"***. 
+This repository provides the code for the paper ***"GRANDE: Gradient-Based Decision Tree Ensembles"*** by Sascha Marton, Stefan Lüdtke, Christian Bartelt and Heiner Stuckenschmidt. Available under: https://arxiv.org/abs/2309.17130
 
 ### We are excited to announce that a `pip install` ready version of GRANDE will be released soon! This will simplify the installation process, making it easier for you to get started. Stay tuned for updates!
 
