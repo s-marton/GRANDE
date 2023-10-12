@@ -2,6 +2,8 @@
 
 This repository provides the code for the paper ***"GRANDE: Gradient-Based Decision Tree Ensembles"***. 
 
+### We are excited to announce that a `pip install` ready version of GRANDE will be released soon! This will simplify the installation process, making it easier for you to get started. Stay tuned for updates!
+
 The required versions of all packages are listed in "*relevant_dependencies.txt*" and can be installed running "*install_requirements.sh*". We further provide the following files to reproduce the results from the paper:
 * *GRANDE-HPO-BS-BIN.ipynb*: Load the optimized parameters and generate results for all binary classification datasets from the paper.
 * *GRANDE-DEFAULT-BS-BIN.ipynb*: Use defualt parameters for all approaches and generate results for all binary classification datasets from the paper.
