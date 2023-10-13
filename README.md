@@ -2,7 +2,7 @@
 
 This repository provides the code for the paper ***"GRANDE: Gradient-Based Decision Tree Ensembles"*** by Sascha Marton, Stefan Lüdtke, Christian Bartelt and Heiner Stuckenschmidt. Available under: https://arxiv.org/abs/2309.17130
 
-### We are excited to announce that a `pip install` ready version of GRANDE will be released soon! This will simplify the installation process, making it easier for you to get started. Stay tuned for updates!
+### An easy to use version is available under: https://pypi.org/project/GRANDE/0.0.1/
 
 The required versions of all packages are listed in "*relevant_dependencies.txt*" and can be installed running "*install_requirements.sh*". We further provide the following files to reproduce the results from the paper:
 * *GRANDE-HPO-BS-BIN.ipynb*: Load the optimized parameters and generate results for all binary classification datasets from the paper.
