@@ -10,11 +10,11 @@
 📝 Details on the method can be found in the preprint available under: https://arxiv.org/abs/2309.17130
 
 ## Installation
-To download the latest official release of the package use a pip command below:
+To download the latest official release of the package, use a pip command below:
 ```bash
 pip install GRANDE
 ```
-More details can be found under: https://pypi.org/project/GRANDE/0.0.1/
+More details can be found under: https://pypi.org/project/GRANDE/
 
 ## Usage
 Example usage is in the following or available in ***GRANDE_minimal_example.ipynb***. Please note that a GPU is required to achieve competitive runtimes.
@@ -157,3 +157,5 @@ print('ROC AUC:', roc_auc)
 A more detailed documentation will follow soon.
 
 Please note that this is an experimental implementation which is not fully tested yet. If you encounter any errors, or you observe unexpected behavior, please let me know.
+
+The code for reproducing the experiments from the paper now is in a separate folder ***./experiments_paper/***
