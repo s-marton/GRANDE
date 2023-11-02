@@ -69,8 +69,10 @@ class GRANDE(tf.keras.Model):
         high_cardinality_indices = []
         num_columns = []
 
-        X_train = pd.DataFrame(X_train)
-        X_val = pd.DataFrame(X_val)
+        if not isinstance(X_train, pd.DataFrame):
+            X_train = pd.DataFrame(X_train)
+        if not isinstance(X_val, pd.DataFrame):
+            X_val = pd.DataFrame(X_val)
         
         for column, column_index in enumerate(X_train.columns):
             if column_index in self.cat_idx:
@@ -137,7 +139,6 @@ class GRANDE(tf.keras.Model):
         self.build_model()
 
         self.compile(loss=self.loss_name, metrics=self.metrics_name, mean=self.mean, std=self.std, class_weight=self.class_weights)
-
 
         train_data = tf.data.Dataset.from_tensor_slices((tf.dtypes.cast(tf.convert_to_tensor(X_train), tf.float32),
                                                          tf.dtypes.cast(tf.convert_to_tensor(y_train), tf.float32)))
@@ -236,7 +237,7 @@ class GRANDE(tf.keras.Model):
                     pass   
 
         elif self.objective == 'regression':
-            loss_function = loss_function_regression(loss_name=loss, mean=kwargs['mean'], std=kwargs['std'], transformation_type='mean')
+            loss_function = loss_function_regression(loss_name=loss, mean=kwargs['mean'], std=kwargs['std'])
 
         loss_function = loss_function_weighting(loss_function, temp=self.temperature)
         self.weights_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_weights, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
@@ -254,7 +255,7 @@ class GRANDE(tf.keras.Model):
                 elif name == 'Accuracy':
                     metrics.append(AccuracySparse(average='macro', num_classes=self.number_of_classes, threshold=0.5))
                 elif name == 'R2':
-                    metrics.append(R2ScoreTransform(transformation_type='mean', mean=kwargs['mean'], std=kwargs['std']))
+                    metrics.append(R2ScoreTransform(mean=kwargs['mean'], std=kwargs['std']))
             metrics = metrics_new
         else:
             if metrics == 'F1':
@@ -262,7 +263,7 @@ class GRANDE(tf.keras.Model):
             elif metrics == 'Accuracy':
                 metrics = [AccuracySparse(average='macro', num_classes=self.number_of_classes, threshold=0.5)]
             elif metrics == 'R2':
-                metrics = [R2ScoreTransform(transformation_type='mean', mean=kwargs['mean'], std=kwargs['std'])]
+                metrics = [R2ScoreTransform(mean=kwargs['mean'], std=kwargs['std'])]
 
         super(GRANDE, self).compile(loss=loss_function, metrics=metrics)
         
@@ -316,7 +317,9 @@ class GRANDE(tf.keras.Model):
  
 
     def predict(self, X, batch_size=64, verbose=0):
-        X = pd.DataFrame(X)
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+
         X = self.encoder_loo.transform(X)
         X = self.encoder_ohe.transform(X)
         X = X.fillna(self.median_train)
@@ -326,10 +329,7 @@ class GRANDE(tf.keras.Model):
         preds = super(GRANDE, self).predict(X, batch_size, verbose=verbose)
         preds = tf.convert_to_tensor(preds)
         if self.objective == 'regression':
-            if self.transformation_type == 'mean':
-                preds = preds * self.std + self.mean
-            elif self.transformation_type == 'log':
-                preds = tf.exp(preds) - 1e-7    
+            preds = preds * self.std + self.mean  
         else:
             if self.from_logits:
                 if self.objective == 'binary':
@@ -481,7 +481,7 @@ class GRANDE(tf.keras.Model):
 
             'optimizer': 'SWA',
             'cosine_decay_steps': 0,
-            'temperature': 0,
+            'temperature': 0.0,
 
             'initializer': 'RandomNormal',
 
@@ -805,9 +805,8 @@ def entmax_threshold_and_support(inputs, axis=-1):
 
 
 class R2ScoreTransform(tf.keras.metrics.Metric):
-    def __init__(self, transformation_type=None, mean=0, std=1, name='r2score_transform', **kwargs):
+    def __init__(self, mean=0, std=1, name='r2score_transform', **kwargs):
         super().__init__(name=name, **kwargs)
-        self.transformation_type = transformation_type
         self.mean = mean
         self.std = std
         self.metric = tfa.metrics.RSquare()
@@ -815,10 +814,7 @@ class R2ScoreTransform(tf.keras.metrics.Metric):
     def update_state(self, y_true, y_pred, sample_weight=None):
 
         if not tf.keras.backend.learning_phase():
-            if self.transformation_type == 'mean':
-                y_true = (y_true - self.mean) / self.std
-            elif self.transformation_type == 'log':
-                y_true = tf.math.log(y_true+1e-7)   
+            y_true = (y_true - self.mean) / self.std
             
         # Update precision and recall
         self.metric.update_state(y_true, y_pred, sample_weight)
@@ -846,17 +842,14 @@ def loss_function_weighting(loss_function, temp=0.25):
         else:
             out = loss
         
-        return tf.reduce_sum(out)
+        return tf.reduce_mean(out)
     return _loss_function_weighting
 
-def loss_function_regression(loss_name, mean, std, transformation_type='mean'): #mean, log, 
+def loss_function_regression(loss_name, mean, std): #mean, log, 
     loss_function = tf.keras.losses.get(loss_name)                                   
     def _loss_function_regression(y_true, y_pred):
         #if tf.keras.backend.learning_phase():
-        if transformation_type == 'mean':
-            y_true = (y_true - mean) / std
-        elif transformation_type == 'log':
-            y_true = tf.math.log(y_true+1e-7)
+        y_true = (y_true - mean) / std
 
         loss = loss_function(y_true, y_pred)
         
