@@ -3,12 +3,16 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import sklearn
 from copy import deepcopy
+import category_encoders as ce
+import pandas as pd
+import math
+from focal_loss import SparseCategoricalFocalLoss
      
 class GRANDE(tf.keras.Model):
     def __init__(self, 
                  params, 
                  args):
-        
+
         params.update(args)
         self.config = None
 
@@ -25,9 +29,9 @@ class GRANDE(tf.keras.Model):
             result = (result / self.output_layer.counts) * self.output_layer.n_estimators   
         else:
             if self.objective == 'regression' or self.objective == 'binary':                                   
-                result = tf.einsum('ij->i', output)
+                result = tf.einsum('be->b', output)
             else:                    
-                result = tf.einsum('ijl->ij', output)
+                result = tf.einsum('bec->bc', output)
 
         if self.objective == 'regression' or self.objective == 'binary':   
             result = tf.expand_dims(result, 1)
@@ -44,9 +48,9 @@ class GRANDE(tf.keras.Model):
             result = (result / self.output_layer.counts) * self.output_layer.n_estimators   
         else:
             if self.objective == 'regression' or self.objective == 'binary':                               
-                result = tf.einsum('ij->i', output)
+                result = tf.einsum('be->b', output)
             else:                    
-                result = tf.einsum('ijl->ij', output)
+                result = tf.einsum('bec->bc', output)
         
         if self.objective == 'regression' or self.objective == 'binary':   
             result = tf.expand_dims(result, 1)
@@ -57,11 +61,61 @@ class GRANDE(tf.keras.Model):
     def fit(self, 
             X_train, 
             y_train, 
-            #validation_data=None,
             X_val=None,
             y_val=None,
             **kwargs):
 
+        low_cardinality_indices = []
+        high_cardinality_indices = []
+        num_columns = []
+
+        X_train = pd.DataFrame(X_train)
+        X_val = pd.DataFrame(X_val)
+        
+        for column, column_index in enumerate(X_train.columns):
+            if column_index in self.cat_idx:
+                if len(X_train.iloc[:,column_index].unique()) < 10:
+                    low_cardinality_indices.append(column)
+                else:
+                    high_cardinality_indices.append(column)
+            else:
+                num_columns.append(column)
+        
+        self.encoder_loo = ce.LeaveOneOutEncoder(cols=high_cardinality_indices)
+        self.encoder_loo.fit(X_train, y_train)
+        X_train = self.encoder_loo.transform(X_train)
+        X_val = self.encoder_loo.transform(X_val)
+        
+        self.encoder_ohe = ce.OneHotEncoder(cols=low_cardinality_indices)
+        self.encoder_ohe.fit(X_train)
+        X_train = self.encoder_ohe.transform(X_train)
+        X_val = self.encoder_ohe.transform(X_val)
+        
+        self.median_train = X_train.median(axis=0)
+        X_train = X_train.fillna(self.median_train)
+        X_val = X_val.fillna(self.median_train)
+
+        self.cat_columns_preprocessed = []
+        for column, column_index in enumerate(X_train.columns):
+            if column not in num_columns:
+                self.cat_columns_preprocessed.append(column_index)
+        quantile_noise = 1e-4
+        quantile_train = np.copy(X_train.values).astype(np.float64)
+        np.random.seed(42)
+        stds = np.std(quantile_train, axis=0, keepdims=True)
+        noise_std = quantile_noise / np.maximum(stds, quantile_noise)
+        quantile_train += noise_std * np.random.randn(*quantile_train.shape)    
+
+        quantile_train = pd.DataFrame(quantile_train, columns=X_train.columns, index=X_train.index)
+
+        self.normalizer = sklearn.preprocessing.QuantileTransformer(
+                                                                    n_quantiles=min(quantile_train.shape[0], 1000),
+                                                                    output_distribution='normal',
+                                                                    )
+
+        self.normalizer.fit(quantile_train.values.astype(np.float64))
+        X_train = self.normalizer.transform(X_train.values.astype(np.float64))
+        X_val = self.normalizer.transform(X_val.values.astype(np.float64))
 
         self.mean = np.std(y_train)
         self.std = np.std(y_train)
@@ -125,12 +179,12 @@ class GRANDE(tf.keras.Model):
 
         early_stopping = tf.keras.callbacks.EarlyStopping(monitor=monitor, 
                                                           patience=self.early_stopping_epochs, 
-                                                          min_delta=1e-4,
+                                                          min_delta=1e-3,
                                                           restore_best_weights=True)
         callbacks.append(early_stopping)
 
         if 'reduce_lr' in kwargs.keys() and kwargs['reduce_lr']:
-            reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(factor=0.2, patience=early_stopping_epochs//3)
+            reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(factor=0.2, patience=self.early_stopping_epochs//3)
             callbacks.append(reduce_lr)
 
         super(GRANDE, self).fit(train_data,
@@ -184,6 +238,7 @@ class GRANDE(tf.keras.Model):
         elif self.objective == 'regression':
             loss_function = loss_function_regression(loss_name=loss, mean=kwargs['mean'], std=kwargs['std'], transformation_type='mean')
 
+        loss_function = loss_function_weighting(loss_function, temp=self.temperature)
         self.weights_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_weights, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
         self.index_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_index, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
         self.values_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_values, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
@@ -261,7 +316,15 @@ class GRANDE(tf.keras.Model):
  
 
     def predict(self, X, batch_size=64, verbose=0):
+        X = pd.DataFrame(X)
+        X = self.encoder_loo.transform(X)
+        X = self.encoder_ohe.transform(X)
+        X = X.fillna(self.median_train)
+
+        X = self.normalizer.transform(X.values.astype(np.float64))
+
         preds = super(GRANDE, self).predict(X, batch_size, verbose=verbose)
+        preds = tf.convert_to_tensor(preds)
         if self.objective == 'regression':
             if self.transformation_type == 'mean':
                 preds = preds * self.std + self.mean
@@ -292,6 +355,7 @@ class GRANDE(tf.keras.Model):
                 'learning_rate_index': 0.01,
                 'learning_rate_values': 0.01,
                 'learning_rate_leaf': 0.01,
+                'temperature': 0.0,
 
                 'optimizer': 'SWA',
                 'cosine_decay_steps': 0,
@@ -305,13 +369,21 @@ class GRANDE(tf.keras.Model):
 
                 'selected_variables': 0.8,
                 'data_subset_fraction': 1.0,
+                'bootstrap': False,
 
                 'metrics': ['F1'], # F1, Accuracy, R2
                 'random_seed': 42,
                 'verbose': 0,
             }
 
+
         self.config.update(kwargs)
+
+        if self.config['n_estimators'] == 1:
+            self.config['selected_variables'] = 1.0
+            self.config['data_subset_fraction'] = 1.0
+            self.config['bootstrap'] = False
+            self.config['dropout'] = 0.0
 
         if 'loss' not in self.config.keys():
             if self.config['objective'] == 'classification' or self.config['objective'] == 'binary':
@@ -323,8 +395,10 @@ class GRANDE(tf.keras.Model):
 
         self.config['optimizer_name'] = self.config.pop('optimizer')
         self.config['loss_name'] = self.config.pop('loss')
-        self.config['metrics_name'] = self.config.pop('metrics')
-
+        if 'metrics' in self.config.keys():
+            self.config['metrics_name'] = self.config.pop('metrics')
+        else: 
+            self.config['metrics_name'] = []
         for arg_key, arg_value in self.config.items():
             setattr(self, arg_key, arg_value)     
 
@@ -351,7 +425,7 @@ class GRANDE(tf.keras.Model):
             'learning_rate_leaf': trial.suggest_float("learning_rate_leaf", 0.0001, 0.25),
 
             'cosine_decay_steps': trial.suggest_categorical("cosine_decay_steps", [0, 100, 1000]),
-
+            
             'dropout': trial.suggest_categorical("dropout", [0, 0.25, 0.5]),
 
             'selected_variables': trial.suggest_categorical("selected_variables", [1.0, 0.75, 0.5]),
@@ -361,10 +435,11 @@ class GRANDE(tf.keras.Model):
         try:
             if args['objective'] != 'regression':
                 params['focal_loss'] = trial.suggest_categorical("focal_loss", [True, False])
+                params['temperature'] = trial.suggest_categorical("temperature", [0, 0.25])
         except:
             if self.objective  != 'regression':
                 params['focal_loss'] = trial.suggest_categorical("focal_loss", [True, False])
-
+                params['temperature'] = trial.suggest_categorical("temperature", [0, 0.25])
         return params
 
     @classmethod
@@ -379,9 +454,8 @@ class GRANDE(tf.keras.Model):
             'learning_rate_values': rs.uniform(0.0001, 0.25),
             'learning_rate_leaf': rs.uniform(0.0001, 0.25),
 
-            'cosine_decay_steps': rs.choice([0, 100, 1000]),
-
-            'dropout': rs.choice([0, 0.25, 0.5]),
+            'cosine_decay_steps': rs.choice([0, 100, 1000], p=[0.5, 0.25, 0.25]),
+            'dropout': rs.choice([0, 0.25]),
 
             'selected_variables': rs.choice([1.0, 0.75, 0.5]),
             'data_subset_fraction': rs.choice([1.0, 0.8]),
@@ -390,6 +464,7 @@ class GRANDE(tf.keras.Model):
 
         if self.objective != 'regression':
             params['focal_loss'] = rs.choice([True, False])
+            params['temperature'] = rs.choice([1, 1/3, 1/5, 1/7, 1/9, 0], p=[0.1, 0.1, 0.1, 0.1, 0.1,0.5]),
 
         return params
 
@@ -406,6 +481,7 @@ class GRANDE(tf.keras.Model):
 
             'optimizer': 'SWA',
             'cosine_decay_steps': 0,
+            'temperature': 0,
 
             'initializer': 'RandomNormal',
 
@@ -419,6 +495,7 @@ class GRANDE(tf.keras.Model):
 
             'selected_variables': 0.8,
             'data_subset_fraction': 1.0,
+            'bootstrap': False,
         }        
 
         return params
@@ -456,7 +533,8 @@ class GRANDEBlock(tf.keras.layers.Layer):
             self.selected_variables = min(self.selected_variables, 50)
             self.selected_variables = max(self.selected_variables, 10)
             self.selected_variables = min(self.selected_variables, self.number_of_variables)  
-
+        if self.objective != 'binary':
+            self.data_subset_fraction = 1.0      
         if self.data_subset_fraction < 1.0:
             self.subset_size = tf.cast(self.batch_size * self.data_subset_fraction, tf.int32)
             if self.bootstrap:
@@ -752,6 +830,25 @@ class R2ScoreTransform(tf.keras.metrics.Metric):
     def reset_states(self):
         self.metric.reset_states()        
         
+
+def loss_function_weighting(loss_function, temp=0.25): 
+
+    # Implementation of "Stochastic Re-weighted Gradient Descent via Distributionally Robust Optimization" from https://arxiv.org/abs/2306.09222
+
+    loss_function.reduction = tf.keras.losses.Reduction.NONE
+    def _loss_function_weighting(y_true, y_pred):
+        loss = loss_function(y_true, y_pred)
+
+        if temp > 0:
+            clamped_loss = tf.clip_by_value(loss, clip_value_min=float('-inf'), clip_value_max=temp)
+
+            out = loss * tf.stop_gradient(tf.exp(clamped_loss / (temp + 1)))
+        else:
+            out = loss
+        
+        return tf.reduce_sum(out)
+    return _loss_function_weighting
+
 def loss_function_regression(loss_name, mean, std, transformation_type='mean'): #mean, log, 
     loss_function = tf.keras.losses.get(loss_name)                                   
     def _loss_function_regression(y_true, y_pred):
@@ -783,11 +880,6 @@ def _threshold_and_support(input, dim=-1):
     return tau_star, support_size
 
 def get_optimizer_by_name(optimizer_name, learning_rate, warmup_steps, cosine_decay_steps):
-    
-    if warmup_steps > 0:
-        learning_rate = tfm.optimization.LinearWarmup(after_warmup_lr_sched=learning_rate,
-                                                      warmup_learning_rate=learning_rate/warmup_steps,
-                                                      warmup_steps=warmup_steps) 
 
     if cosine_decay_steps > 0:
         learning_rate = tf.keras.optimizers.schedules.CosineDecayRestarts(
@@ -798,8 +890,6 @@ def get_optimizer_by_name(optimizer_name, learning_rate, warmup_steps, cosine_de
 
     if optimizer_name== 'SWA':
         optimizer = tfa.optimizers.SWA(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate), average_period=5)
-    elif optimizer_name== 'GradientAccumulator':
-        optimizer = GradientAccumulateOptimizer(accum_steps=10, optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)) 
     elif optimizer_name== 'AdamW':
         optimizer = tf.keras.optimizers.AdamW()  
     else:
