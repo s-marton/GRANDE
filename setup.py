@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="GRANDE",
-    version="0.1.1",
+    version="0.1.2",
     packages=find_packages(),
     install_requires=[
         'focal_loss>=0.0.7',

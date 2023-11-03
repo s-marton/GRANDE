@@ -119,7 +119,7 @@ class GRANDE(tf.keras.Model):
         X_train = self.normalizer.transform(X_train.values.astype(np.float64))
         X_val = self.normalizer.transform(X_val.values.astype(np.float64))
 
-        self.mean = np.std(y_train)
+        self.mean = np.mean(y_train)
         self.std = np.std(y_train)
 
         self.number_of_variables = X_train.shape[1]
