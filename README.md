@@ -16,6 +16,19 @@ pip install GRANDE
 ```
 More details can be found under: https://pypi.org/project/GRANDE/
 
+
+## Cite us
+
+```
+@article{marton2023grande,
+  title={GRANDE: Gradient-Based Decision Tree Ensembles},
+  author={Marton, Sascha and L{\"u}dtke, Stefan and Bartelt, Christian and Stuckenschmidt, Heiner},
+  journal={arXiv preprint arXiv:2309.17130},
+  year={2023}
+}
+```
+
+
 ## Usage
 Example usage is in the following or available in ***GRANDE_minimal_example.ipynb***. Please note that a GPU is required to achieve competitive runtimes.
 
