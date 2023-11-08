@@ -22,7 +22,7 @@ More details can be found under: https://pypi.org/project/GRANDE/
 ```
 @article{marton2023grande,
   title={GRANDE: Gradient-Based Decision Tree Ensembles},
-  author={Marton, Sascha and L{\"u}dtke, Stefan and Bartelt, Christian and Stuckenschmidt, Heiner},
+  author={Marton, Sascha and Lüdtke, Stefan and Bartelt, Christian and Stuckenschmidt, Heiner},
   journal={arXiv preprint arXiv:2309.17130},
   year={2023}
 }
