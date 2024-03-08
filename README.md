@@ -20,11 +20,13 @@ More details can be found under: https://pypi.org/project/GRANDE/
 ## Cite us
 
 ```
-@article{marton2023grande,
-  title={GRANDE: Gradient-Based Decision Tree Ensembles},
-  author={Marton, Sascha and Lüdtke, Stefan and Bartelt, Christian and Stuckenschmidt, Heiner},
-  journal={arXiv preprint arXiv:2309.17130},
-  year={2023}
+@inproceedings{
+marton2024grande,
+title={{GRANDE}: Gradient-Based Decision Tree Ensembles},
+author={Sascha Marton and Stefan L{\"u}dtke and Christian Bartelt and Heiner Stuckenschmidt},
+booktitle={The Twelfth International Conference on Learning Representations},
+year={2024},
+url={https://openreview.net/forum?id=XEFWBxi075}
 }
 ```
 
