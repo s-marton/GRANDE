@@ -1,1 +1,2 @@
 from .GRANDE import GRANDE
+from .GRANDE_TORCH import GRANDE_TORCH

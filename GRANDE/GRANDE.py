@@ -124,10 +124,14 @@ class GRANDE(tf.keras.Model):
         if not isinstance(X, pd.DataFrame):
             X = pd.DataFrame(X)
 
-        X = self.encoder.transform(X).astype(np.float64)
+        if len(self.num_columns) > 0:
+            X[self.num_columns] = X[self.num_columns].fillna(self.mean_train_num)
+        if len(self.cat_columns) > 0:
+            X[self.cat_columns] = X[self.cat_columns].fillna(self.mode_train_cat)        
+        
+        X = self.encoder_ordinal.transform(X)
         X = self.encoder_loo.transform(X)
         X = self.encoder_ohe.transform(X)
-        X = X.fillna(self.median_train)
 
         X = self.normalizer.transform(X.values.astype(np.float64))
 
@@ -154,23 +158,40 @@ class GRANDE(tf.keras.Model):
             X_train = pd.DataFrame(X_train)
         if not isinstance(X_val, pd.DataFrame):
             X_val = pd.DataFrame(X_val)
-        
-        self.encoder = ce.OrdinalEncoder(cols=X_train.columns[self.cat_idx])
-        self.encoder.fit(X_train)
-        X_train = self.encoder.transform(X_train).astype(np.float64)
-        X_val = self.encoder.transform(X_val).astype(np.float64)
 
+        binary_indices = []
         low_cardinality_indices = []
         high_cardinality_indices = []
         num_columns = []
-        for column, column_index in enumerate(X_train.columns):
+        for column_index, column in enumerate(X_train.columns):
             if column_index in self.cat_idx:
+                if len(X_train.iloc[:,column_index].unique()) <= 2:
+                    binary_indices.append(column)
                 if len(X_train.iloc[:,column_index].unique()) < 5:
                     low_cardinality_indices.append(column)
                 else:
                     high_cardinality_indices.append(column)
             else:
-                num_columns.append(column)        
+                num_columns.append(column)     
+
+        cat_columns = [col for col in X_train.columns if col not in num_columns]
+
+        if len(num_columns) > 0:
+            self.mean_train_num = X_train[num_columns].mean(axis=0).iloc[0]
+            X_train[num_columns] = X_train[num_columns].fillna(self.mean_train_num)
+            X_val[num_columns] = X_val[num_columns].fillna(self.mean_train_num)
+        if len(cat_columns) > 0:
+            self.mode_train_cat = X_train[cat_columns].mode(axis=0).iloc[0]
+            X_train[cat_columns] = X_train[cat_columns].fillna(self.mode_train_cat)
+            X_val[cat_columns] = X_val[cat_columns].fillna(self.mode_train_cat)
+
+        self.cat_columns = cat_columns
+        self.num_columns = num_columns
+        
+        self.encoder_ordinal = ce.OrdinalEncoder(cols=binary_indices)
+        self.encoder_ordinal.fit(X_train)
+        X_train = self.encoder_ordinal.transform(X_train)
+        X_val = self.encoder_ordinal.transform(X_val)     
         
         self.encoder_loo = ce.LeaveOneOutEncoder(cols=high_cardinality_indices)
         self.encoder_loo.fit(X_train, y_train)
@@ -181,15 +202,10 @@ class GRANDE(tf.keras.Model):
         self.encoder_ohe.fit(X_train)
         X_train = self.encoder_ohe.transform(X_train)
         X_val = self.encoder_ohe.transform(X_val)
-        
-        self.median_train = X_train.median(axis=0)
-        X_train = X_train.fillna(self.median_train)
-        X_val = X_val.fillna(self.median_train)
 
-        self.cat_columns_preprocessed = []
-        for column, column_index in enumerate(X_train.columns):
-            if column not in num_columns:
-                self.cat_columns_preprocessed.append(column_index)
+        X_train = X_train.astype(np.float32)
+        X_val = X_val.astype(np.float32)
+        
         quantile_noise = 1e-4
         quantile_train = np.copy(X_train.values).astype(np.float64)
         np.random.seed(42)
@@ -638,9 +654,10 @@ class GRANDE(tf.keras.Model):
     
                     'std': self.std,
                     'mean': self.mean,
-                    'median_train': self.median_train,
+                    'mode_train_cat': self.mode_train_cat,
+                    'mean_train_num': self.mean_train_num,
 
-                    'encoder': self.encoder,
+                    'encoder_ordinal': self.encoder_ordinal,
                     'encoder_loo': self.encoder_loo,
                     'encoder_ohe': self.encoder_ohe,
                     'normalizer': self.normalizer,
