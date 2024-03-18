@@ -9,7 +9,6 @@ import pandas as pd
 import math
 from focal_loss import SparseCategoricalFocalLoss
 
-import tensorflow as tf
 import pickle
 import zipfile
 import os
@@ -167,7 +166,7 @@ class GRANDE(tf.keras.Model):
             if column_index in self.cat_idx:
                 if len(X_train.iloc[:,column_index].unique()) <= 2:
                     binary_indices.append(column)
-                if len(X_train.iloc[:,column_index].unique()) < 5:
+                elif len(X_train.iloc[:,column_index].unique()) < 5:
                     low_cardinality_indices.append(column)
                 else:
                     high_cardinality_indices.append(column)
@@ -228,6 +227,35 @@ class GRANDE(tf.keras.Model):
         self.std = np.std(y_train)
     
         return X_train, y_train, X_val, y_val
+        
+    def convert_to_numpy(self,data):
+        """
+        Converts input data (Pandas DataFrame, TensorFlow tensor, PyTorch tensor, list, or similar iterable) to a NumPy array.
+    
+        Args:
+        data: Input data to be converted. Can be a Pandas DataFrame, TensorFlow tensor, PyTorch tensor, list, or similar iterable.
+    
+        Returns:
+        numpy_array: A NumPy array representation of the input data.
+        """
+        # Check if the data is a Pandas DataFrame
+        if isinstance(data, (pd.DataFrame, pd.Series)):
+            return data.values
+        
+        # Check if the data is a TensorFlow tensor
+        elif isinstance(data, tf.Tensor):
+            return data.numpy()
+        
+        # Check if the data is a PyTorch tensor
+        elif isinstance(data, torch.Tensor):
+            return data.detach().cpu().numpy()
+        
+        # Check if the data is a list or similar iterable (not including strings)
+        elif isinstance(data, (list, tuple, np.ndarray)):
+            return np.array(data)
+        
+        else:
+            raise TypeError("The input data type is not supported for conversion.")
     
     def fit(self, 
             X_train, 
@@ -236,8 +264,14 @@ class GRANDE(tf.keras.Model):
             y_val=None,
             **kwargs):
 
-        X_train, y_train, X_val, y_val = self.preprocess_data(X_train, y_train, X_val, y_val)
- 
+        if self.apply_preprocessing:
+            X_train, y_train, X_val, y_val = self.preprocess_data(X_train, y_train, X_val, y_val)
+        else:
+            X_train = self.convert_to_numpy(X_train)
+            y_train = self.convert_to_numpy(y_train)
+            X_val = self.convert_to_numpy(X_val)
+            y_val = self.convert_to_numpy(y_val)
+        
         self.number_of_variables = X_train.shape[1]
         if self.use_class_weights:
             if self.objective == 'classification' or self.objective == 'binary':
@@ -476,11 +510,14 @@ class GRANDE(tf.keras.Model):
         return {m.name: m.result() for m in self.metrics}
  
 
-    def predict(self, X, batch_size=64, verbose=0):
-        
-        X = self.apply_preprocessing(X)
+    def predict(self, X):
 
-        preds = super(GRANDE, self).predict(X, batch_size, verbose=verbose)
+        if self.apply_preprocessing:
+            X = self.apply_preprocessing(X)
+        else:
+            X = self.convert_to_numpy(X)
+        
+        preds = super(GRANDE, self).predict(X, self.batch_size, verbose=0)
         preds = tf.convert_to_tensor(preds)
         if self.objective == 'regression':
             preds = preds * self.std + self.mean  
@@ -499,36 +536,7 @@ class GRANDE(tf.keras.Model):
     def set_params(self, **kwargs): 
                 
         if self.config is None:
-            self.config = {
-                'objective': 'binary',
-
-                'depth': 5,
-                'n_estimators': 2048,
-
-                'learning_rate_weights': 0.005,
-                'learning_rate_index': 0.01,
-                'learning_rate_values': 0.01,
-                'learning_rate_leaf': 0.01,
-                'temperature': 0.0,
-
-                'optimizer': 'adam',
-                'cosine_decay_steps': 0,
-
-                'initializer': 'RandomNormal',
-
-                'from_logits': True,
-                'use_class_weights': True,
-
-                'dropout': 0.0,
-
-                'selected_variables': 0.8,
-                'data_subset_fraction': 1.0,
-                'bootstrap': False,
-
-                'random_seed': 42,
-                'verbose': 0,
-            }
-
+            self.config = self.default_parameters()
 
         self.config.update(kwargs)
 
@@ -558,8 +566,7 @@ class GRANDE(tf.keras.Model):
     def get_params(self):
         return self.config    
 
-    @classmethod
-    def define_trial_parameters(cls, trial, args):
+    def define_trial_parameters(self, trial, args):
         params = {
             'depth': trial.suggest_int("depth", 3, 7),
             'n_estimators': trial.suggest_int("n_estimators", 512, 2048),
@@ -587,8 +594,7 @@ class GRANDE(tf.keras.Model):
                 params['temperature'] = trial.suggest_categorical("temperature", [0, 0.25])
         return params
 
-    @classmethod
-    def get_random_parameters(cls, seed):
+    def get_random_parameters(self, seed):
         rs = np.random.RandomState(seed)
         params = {
             'depth': rs.randint(3, 7),
@@ -613,8 +619,7 @@ class GRANDE(tf.keras.Model):
 
         return params
 
-    @classmethod
-    def default_parameters(cls):
+    def default_parameters(self):
         params = {
             'depth': 5,
             'n_estimators': 2048,
@@ -635,6 +640,7 @@ class GRANDE(tf.keras.Model):
 
             'from_logits': True,
             'use_class_weights': True,
+            'apply_preprocessing': True,
 
             'dropout': 0.0,
 
@@ -646,8 +652,6 @@ class GRANDE(tf.keras.Model):
         return params
 
     def save_model(self, save_path='model_gande'):
-
-
         config = {'params': {
                     'depth': self.depth,
                     'n_estimators': self.n_estimators,
