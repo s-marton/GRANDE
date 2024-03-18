@@ -264,7 +264,7 @@ class GRANDE(tf.keras.Model):
             y_val=None,
             **kwargs):
 
-        if self.apply_preprocessing:
+        if self.preprocess_data:
             X_train, y_train, X_val, y_val = self.preprocess_data(X_train, y_train, X_val, y_val)
         else:
             X_train = self.convert_to_numpy(X_train)
@@ -512,7 +512,7 @@ class GRANDE(tf.keras.Model):
 
     def predict(self, X):
 
-        if self.apply_preprocessing:
+        if self.preprocess_data:
             X = self.apply_preprocessing(X)
         else:
             X = self.convert_to_numpy(X)
@@ -615,7 +615,7 @@ class GRANDE(tf.keras.Model):
 
         if self.objective != 'regression':
             params['focal_loss'] = rs.choice([True, False])
-            params['temperature'] = rs.choice([1, 1/3, 1/5, 1/7, 1/9, 0], p=[0.1, 0.1, 0.1, 0.1, 0.1,0.5]),
+            params['temperature'] = rs.choice([1, 1/3, 1/5, 1/7, 1/9, 0], p=[0.1, 0.1, 0.1, 0.1, 0.1,0.5])
 
         return params
 
@@ -640,7 +640,7 @@ class GRANDE(tf.keras.Model):
 
             'from_logits': True,
             'use_class_weights': True,
-            'apply_preprocessing': True,
+            'preprocess_data': True,
 
             'dropout': 0.0,
 
