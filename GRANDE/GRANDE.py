@@ -136,7 +136,7 @@ class GRANDE(tf.keras.Model):
 
         return X
         
-    def apply_preprocessing(self, 
+    def perform_preprocessing(self, 
                         X_train, 
                         y_train, 
                         X_val,
@@ -265,7 +265,7 @@ class GRANDE(tf.keras.Model):
             **kwargs):
 
         if self.preprocess_data:
-            X_train, y_train, X_val, y_val = self.apply_preprocessing(X_train, y_train, X_val, y_val)
+            X_train, y_train, X_val, y_val = self.perform_preprocessing(X_train, y_train, X_val, y_val)
         else:
             X_train = self.convert_to_numpy(X_train)
             y_train = self.convert_to_numpy(y_train)
