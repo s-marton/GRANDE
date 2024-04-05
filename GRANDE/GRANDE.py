@@ -233,7 +233,7 @@ class GRANDE(tf.keras.Model):
         Converts input data (Pandas DataFrame, TensorFlow tensor, PyTorch tensor, list, or similar iterable) to a NumPy array.
     
         Args:
-        data: Input data to be converted. Can be a Pandas DataFrame, TensorFlow tensor, PyTorch tensor, list, or similar iterable.
+        data: Input data to be converted. Can be a Pandas DataFrame, TensorFlow tensor, list, or similar iterable.
     
         Returns:
         numpy_array: A NumPy array representation of the input data.
@@ -245,10 +245,6 @@ class GRANDE(tf.keras.Model):
         # Check if the data is a TensorFlow tensor
         elif isinstance(data, tf.Tensor):
             return data.numpy()
-        
-        # Check if the data is a PyTorch tensor
-        elif isinstance(data, torch.Tensor):
-            return data.detach().cpu().numpy()
         
         # Check if the data is a list or similar iterable (not including strings)
         elif isinstance(data, (list, tuple, np.ndarray)):
@@ -271,6 +267,8 @@ class GRANDE(tf.keras.Model):
             y_train = self.convert_to_numpy(y_train)
             X_val = self.convert_to_numpy(X_val)
             y_val = self.convert_to_numpy(y_val)
+
+        jit_compile = X_train.shape[0] < 10_000
         
         self.number_of_variables = X_train.shape[1]
         if self.use_class_weights:
@@ -296,7 +294,7 @@ class GRANDE(tf.keras.Model):
         
         self.build_model()
 
-        self.compile(loss=self.loss_name, metrics=[], mean=self.mean, std=self.std, class_weight=self.class_weights)
+        self.compile(loss=self.loss_name, metrics=[], jit_compile=jit_compile, mean=self.mean, std=self.std, class_weight=self.class_weights)
 
         
         train_data = tf.data.Dataset.from_tensor_slices((tf.dtypes.cast(tf.convert_to_tensor(X_train), tf.float32),
@@ -380,10 +378,7 @@ class GRANDE(tf.keras.Model):
             items, self.counts = np.unique(self.data_select, return_counts=True)
             self.counts = tf.constant(self.counts, dtype=tf.float32)        
         
-        if self.n_estimators > 1:
-            self.features_by_estimator = tf.stack([np.random.choice(self.number_of_variables, size=(self.selected_variables), replace=False, p=None) for _ in range(self.n_estimators)])
-        else:
-            self.features_by_estimator = tf.constant([np.random.choice(self.number_of_variables, size=(self.selected_variables), replace=False, p=None)])
+        self.features_by_estimator = tf.stack([np.random.choice(self.number_of_variables, size=(self.selected_variables), replace=False, p=None) for _ in range(self.n_estimators)])
 
         self.path_identifier_list = []
         self.internal_node_index_list = []
@@ -426,6 +421,7 @@ class GRANDE(tf.keras.Model):
     def compile(self, 
         loss, 
         metrics, 
+        jit_compile,
         **kwargs):
 
         if self.objective == 'classification':
@@ -463,7 +459,7 @@ class GRANDE(tf.keras.Model):
         self.values_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_values, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
         self.leaf_optimizer = get_optimizer_by_name(optimizer_name=self.optimizer_name, learning_rate=self.learning_rate_leaf, warmup_steps=0, cosine_decay_steps=self.cosine_decay_steps)
 
-        super(GRANDE, self).compile(loss=loss_function, metrics=metrics)
+        super(GRANDE, self).compile(loss=loss_function, metrics=metrics, jit_compile=jit_compile)
         
     def train_step(self, data):
     
