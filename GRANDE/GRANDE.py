@@ -268,7 +268,7 @@ class GRANDE(tf.keras.Model):
             X_val = self.convert_to_numpy(X_val)
             y_val = self.convert_to_numpy(y_val)
 
-        jit_compile = X_train.shape[0] < 10_000
+        jit_compile = True #X_train.shape[0] < 10_000
         
         self.number_of_variables = X_train.shape[1]
         if self.use_class_weights:
