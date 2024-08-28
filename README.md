@@ -4,12 +4,30 @@
 
 🌳 GRANDE is a novel gradient-based decision tree ensemble method for tabular data!
 
+<div align="center">
+
+<img src="figures/grande.jpg" alt="GRANDE Overview" width="100%"/>
+
+<p><strong>Figure 1: Overview GRANDE.</strong> GRANDE is a gradient-based decision tree ensemble that utilizes dynamic, instance-wise leaf weights. Each estimator is weighted based on leaf weights that are calculated individually for each input. The ensemble's prediction is then obtained as a weighted sum of the individual predictions.</p>
+
+</div>
+
 🔍 What's new?
 - End-to-end gradient descent for tree ensembles.
 - Combines inductive bias of hard, axis-aligned splits with the flexibility of a gradient descent optimization.
 - Advanced instance-wise weighting to learn representations for both simple & complex relations in one model.
 
-📝 Details on the method can be found in our paper available under: https://openreview.net/forum?id=XEFWBxi075
+🏆 Results? We outperformed leading tree ensemble methods like #XGBoost and #CatBoost on many datasets.
+
+<div align="center">
+
+<img src="figures/results_hpo.jpg" alt="GRANDE Results" width="100%"/>
+
+<p><strong>Figure 2: Performance Comparison.</strong> We report the test macro F1-score (mean ± stdev for a 5-fold CV) with optimized parameters. The datasets are sorted based on the data size.</p>
+
+</div>
+
+📝 More details on the method can be found in our paper available under: https://openreview.net/forum?id=XEFWBxi075
 
 ## Installation
 To download the latest official release of the package, use the pip command below:
