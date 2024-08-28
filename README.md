@@ -1,5 +1,7 @@
 # 🌳 GRANDE: Gradient-Based Decision Tree Ensembles 🌳
 
+[![PyPI version](https://img.shields.io/pypi/v/GRANDE)](https://pypi.org/project/GRANDE/) [![OpenReview](https://img.shields.io/badge/OpenReview-XEFWBxi075-blue)](https://openreview.net/forum?id=XEFWBxi075) [![arXiv](https://img.shields.io/badge/arXiv-2309.17130-b31b1b.svg)](https://arxiv.org/abs/2309.17130)
+
 🌳 GRANDE is a novel gradient-based decision tree ensemble method for tabular data!
 
 🔍 What's new?
