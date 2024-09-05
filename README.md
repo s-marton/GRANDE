@@ -6,7 +6,7 @@
 
 <div align="center">
 
-<img src="figures/grande.jpg" alt="GRANDE Overview" width="100%"/>
+<img src="figures/grande.jpg" alt="GRANDE Overview" width="50%"/>
 
 <p><strong>Figure 1: Overview GRANDE.</strong> GRANDE is a gradient-based decision tree ensemble that utilizes dynamic, instance-wise leaf weights. Each estimator is weighted based on leaf weights that are calculated individually for each input. The ensemble's prediction is then obtained as a weighted sum of the individual predictions.</p>
 
@@ -21,7 +21,7 @@
 
 <div align="center">
 
-<img src="figures/results_hpo.jpg" alt="GRANDE Results" width="100%"/>
+<img src="figures/results_hpo.jpg" alt="GRANDE Results" width="70%"/>
 
 <p><strong>Figure 2: Performance Comparison.</strong> We report the test macro F1-score (mean ± stdev for a 5-fold CV) with optimized parameters. The datasets are sorted based on the data size.</p>
 
