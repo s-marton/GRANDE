@@ -10,7 +10,7 @@ setup(
         'pandas>=2.0.3',
         'tensorflow==2.16.1',
         'numpy>=1.24.3',
-        'scikit_learn>=1.3.0',
+        'scikit-learn>=1.3.0,<1.6.0',
         'focal_loss==0.0.7',
     ],
     author="Sascha Marton",
