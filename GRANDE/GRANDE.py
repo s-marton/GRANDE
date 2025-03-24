@@ -158,6 +158,9 @@ class GRANDE(tf.keras.Model):
         if not isinstance(X_val, pd.DataFrame):
             X_val = pd.DataFrame(X_val)
 
+        self.mean = np.mean(y_train)
+        self.std = np.std(y_train)
+                             
         binary_indices = []
         low_cardinality_indices = []
         high_cardinality_indices = []
@@ -225,9 +228,6 @@ class GRANDE(tf.keras.Model):
         self.normalizer.fit(quantile_train.values.astype(np.float64))
         X_train = self.normalizer.transform(X_train.values.astype(np.float64))
         X_val = self.normalizer.transform(X_val.values.astype(np.float64))
-
-        self.mean = np.mean(y_train)
-        self.std = np.std(y_train)
     
         return X_train, y_train, X_val, y_val
         
