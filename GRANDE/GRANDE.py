@@ -370,7 +370,11 @@ class GRANDE(tf.keras.Model):
         if self.objective != 'binary':
             self.data_subset_fraction = 1.0      
         if self.data_subset_fraction < 1.0:
-            self.subset_size = tf.cast(self.batch_size * self.data_subset_fraction, tf.int32)
+            if self.batch_size * self.data_subset_fraction > 4:
+                self.subset_size = tf.cast(self.batch_size * self.data_subset_fraction, tf.int32)
+            else:
+                self.subset_size = tf.cast(4, tf.int32)
+
             if self.bootstrap:
                 self.data_select = tf.random.uniform(shape=(self.n_estimators, self.subset_size), minval=0, maxval=self.batch_size, dtype=tf.int32)
             else:
@@ -398,28 +402,27 @@ class GRANDE(tf.keras.Model):
         
         weight_shape = [self.n_estimators,self.leaf_node_num_]
 
+        self.estimator_weights = self.add_weight(shape=weight_shape,
+                                                initializer={'class_name': self.initializer, 'config': {'seed': self.random_seed + 1}},
+                                                trainable=True,
+                                                name="estimator_weights",)
+
+        self.split_values = self.add_weight(shape=(self.n_estimators, self.internal_node_num_, self.selected_variables),
+                                                initializer={'class_name': self.initializer, 'config': {'seed': self.random_seed + 2}},
+                                                trainable=True,
+                                                name="split_values",)
 
 
-        self.estimator_weights = tf.Variable(tf.keras.initializers.get({'class_name': self.initializer, 'config': {'seed': self.random_seed + 1}})(shape=weight_shape),
-                                             
-                                             trainable=True,
-                                             name="estimator_weights"
-                                            )
-        self.split_values = tf.Variable(tf.keras.initializers.get({'class_name': self.initializer, 'config': {'seed': self.random_seed + 2}})(shape=[self.n_estimators,self.internal_node_num_, self.selected_variables]), 
-                                             trainable=True,
-                                             name="split_values"
-                                       )
-        
-        self.split_index_array = tf.Variable(tf.keras.initializers.get({'class_name': self.initializer, 'config': {'seed': self.random_seed + 3}})(shape=[self.n_estimators,self.internal_node_num_, self.selected_variables]), 
-                                             trainable=True,
-                                             name="split_index_array"
-                                            )
-        
-        self.leaf_classes_array = tf.Variable(tf.keras.initializers.get({'class_name': self.initializer, 'config': {'seed': self.random_seed + 4}})(shape=leaf_classes_array_shape), 
-                                             trainable=True,
-                                             name="leaf_classes_array"
-                                             )
-        
+        self.split_index_array = self.add_weight(shape=(self.n_estimators, self.internal_node_num_, self.selected_variables),
+                                                initializer={'class_name': self.initializer, 'config': {'seed': self.random_seed + 3}},
+                                                trainable=True,
+                                                name="split_index_array",)        
+            
+        self.leaf_classes_array = self.add_weight(shape=leaf_classes_array_shape,
+                                                initializer={'class_name': self.initializer, 'config': {'seed': self.random_seed + 4}},
+                                                trainable=True,
+                                                name="leaf_classes_array",) 
+    
 
     def compile(self, 
         loss, 
@@ -475,28 +478,20 @@ class GRANDE(tf.keras.Model):
         if not self.built:
             _ = self(x, training=True) 
 
-        with tf.GradientTape() as weights_tape:
-            with tf.GradientTape() as index_tape:
-                with tf.GradientTape() as values_tape:
-                    with tf.GradientTape() as leaf_tape:                        
-                        weights_tape.watch(self.estimator_weights)          
-                        index_tape.watch(self.split_index_array)
-                        values_tape.watch(self.split_values)
-                        leaf_tape.watch(self.leaf_classes_array)
-                        
-                        y_pred = self(x, training=True)
-                        loss = self.compute_loss(x=None, y=y, y_pred=y_pred, sample_weight=sample_weight)
+        with tf.GradientTape(persistent=True) as tape:           
+            y_pred = self(x, training=True)
+            loss = self.compute_loss(x=None, y=y, y_pred=y_pred, sample_weight=sample_weight)
 
-        weights_gradients = weights_tape.gradient(loss, [self.estimator_weights])
+        weights_gradients = tape.gradient(loss, [self.estimator_weights])
         self.weights_optimizer.apply_gradients(zip(weights_gradients, [self.estimator_weights]))       
 
-        index_gradients = index_tape.gradient(loss, [self.split_index_array])
+        index_gradients = tape.gradient(loss, [self.split_index_array])
         self.index_optimizer.apply_gradients(zip(index_gradients, [self.split_index_array]))
          
-        values_gradients = values_tape.gradient(loss, [self.split_values])
+        values_gradients = tape.gradient(loss, [self.split_values])
         self.values_optimizer.apply_gradients(zip(values_gradients, [self.split_values]))
         
-        leaf_gradients = leaf_tape.gradient(loss, [self.leaf_classes_array])  
+        leaf_gradients = tape.gradient(loss, [self.leaf_classes_array])  
         self.leaf_optimizer.apply_gradients(zip(leaf_gradients, [self.leaf_classes_array]))        
 
 
