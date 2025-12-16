@@ -5,7 +5,7 @@
 
 <div align="center">
 
-<img src="figures/tabarena_leaderboard.pdf" alt="TabArena Leaderboard" width="60%"/>
+<img src="figures/tabarena_leaderboard.jpg" alt="TabArena Leaderboard" width="60%"/>
 
 <p><strong>TabArena.</strong> The updated PyTorch GRANDE has been evaluated on TabArena and achieved strong results.</p>
 
