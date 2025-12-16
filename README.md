@@ -1,11 +1,11 @@
 # 🌳 GRANDE: Gradient-Based Decision Tree Ensembles 🌳
 
-[![PyPI version](https://img.shields.io/pypi/v/GRANDE)](https://pypi.org/project/GRANDE/) [![OpenReview](https://img.shields.io/badge/OpenReview-XEFWBxi075-blue)](https://openreview.net/forum?id=XEFWBxi075) [![arXiv](https://arxiv.org/abs/2309.17130)](https://arxiv.org/abs/2309.17130)
+[![PyPI version](https://img.shields.io/pypi/v/GRANDE)](https://pypi.org/project/GRANDE/) [![OpenReview](https://img.shields.io/badge/OpenReview-XEFWBxi075-blue)](https://openreview.net/forum?id=XEFWBxi075) [![arXiv](https://img.shields.io/badge/arXiv-2309.17130-b31b1b.svg)](https://arxiv.org/abs/2309.17130)
 
 
 <div align="center">
 
-<img src="figures/tabarena_leaderboard.jpg" alt="TabArena Leaderboard" width="60%"/>
+<img src="figures/tabarena_leaderboard.pdf" alt="TabArena Leaderboard" width="60%"/>
 
 <p><strong>TabArena.</strong> The updated PyTorch GRANDE has been evaluated on TabArena and achieved strong results.</p>
 
