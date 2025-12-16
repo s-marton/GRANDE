@@ -1,0 +1,13 @@
+# Core runtime requirements (GRANDE/GRANDE.py)
+numpy>=1.25.0,<2.4.0
+pandas>=2.0.0,<2.4.0
+torch>=2.6,<2.10
+scikit-learn>=1.4.0,<1.8.0
+category-encoders>=2.6.4,<=2.9.0
+tqdm>=4.38,<5
+autogluon>=1.3.0,<=1.4.0
+
+# Notebook / example-only requirements (GRANDE_minimal_example_with_comparison_BINARY.ipynb)
+openml>=0.15.0,<=0.15.1
+xgboost>=2.0,<3.1
+catboost>=1.2,<1.3
