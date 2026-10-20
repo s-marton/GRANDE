@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GRANDE"
+dynamic = ["version"]
+description = "GRANDE: Gradient-Based Decision Tree Ensembles. Hard, axis-aligned decision trees learned end-to-end with gradient descent."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sascha Marton", email = "sascha.marton@gmail.com" }]
+requires-python = ">=3.10"
+keywords = ["tabular", "decision trees", "ensemble", "gradient descent", "pytorch", "scikit-learn"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.25,<3",
+    "pandas>=2.0,<4",
+    "torch>=2.6,<3",
+    "scikit-learn>=1.4,<2",
+    "category-encoders>=2.6.4,<3",
+    "rtdl-num-embeddings>=0.0.12,<0.1",
+]
+
+[project.optional-dependencies]
+# Plots of trees, feature importances and estimator weights.
+plot = ["matplotlib>=3.6"]
+# Everything needed to run the notebooks in examples/.
+examples = [
+    "matplotlib>=3.6",
+    "openml>=0.15",
+    "xgboost>=2.0",
+    "catboost>=1.2",
+    "jupyter",
+]
+
+[project.urls]
+Homepage = "https://github.com/s-marton/GRANDE"
+Paper = "https://openreview.net/forum?id=XEFWBxi075"
+
+[tool.setuptools.dynamic]
+version = { attr = "GRANDE._version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["GRANDE*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

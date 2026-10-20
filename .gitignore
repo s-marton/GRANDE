@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+
+# Artifacts produced by the example notebooks
+catboost_info/
+
+# Local development and test material (kept out of the repository)
+_dev/
+compute_guide.md
